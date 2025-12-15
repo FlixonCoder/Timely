@@ -1,0 +1,60 @@
+// quotes.js
+
+const quotes = [
+    { id: 1, text: "Discipline is choosing what you want most over what you want now." },
+    { id: 2, text: "Consistency turns ordinary actions into extraordinary results." },
+    { id: 3, text: "Your habits shape your future long before success shows up." },
+    { id: 4, text: "Growth begins the moment excuses end." },
+    { id: 5, text: "Self-control is the foundation of personal power." },
+    { id: 6, text: "Confidence is built through preparation, not wishful thinking." },
+    { id: 7, text: "Manage your time, or your time will manage you." },
+    { id: 8, text: "Discomfort is often the price of self-improvement." },
+    { id: 9, text: "Focus is saying no to what doesn’t move you forward." },
+    { id: 10, text: "Your mindset determines whether challenges break you or build you." },
+
+    { id: 11, text: "Personal growth requires honest self-reflection." },
+    { id: 12, text: "You don’t need motivation every day, you need discipline." },
+    { id: 13, text: "Emotional control is a silent form of strength." },
+    { id: 14, text: "Small improvements repeated daily create massive change." },
+    { id: 15, text: "Clarity in goals leads to clarity in action." },
+    { id: 16, text: "Your personality is shaped by the standards you refuse to lower." },
+    { id: 17, text: "Success favors those who master themselves first." },
+    { id: 18, text: "Self-awareness is the first step to self-mastery." },
+    { id: 19, text: "Growth happens outside the comfort zone you protect." },
+    { id: 20, text: "Strong character is built when no one is watching." },
+
+    { id: 21, text: "Progress beats perfection every single time." },
+    { id: 22, text: "Your daily routine reveals your true priorities." },
+    { id: 23, text: "Resilience is the skill of standing up one more time." },
+    { id: 24, text: "The way you speak to yourself shapes your confidence." },
+    { id: 25, text: "Self-discipline is self-respect in action." },
+    { id: 26, text: "You grow when you learn to respond, not react." },
+    { id: 27, text: "Ambition without structure leads to burnout." },
+    { id: 28, text: "Consistency compounds faster than motivation." },
+    { id: 29, text: "Your future personality is built by today’s decisions." },
+    { id: 30, text: "Master your emotions, or they will master you." },
+
+    { id: 31, text: "Personal excellence is a habit, not an event." },
+    { id: 32, text: "Clarity eliminates procrastination." },
+    { id: 33, text: "Your standards define your lifestyle." },
+    { id: 34, text: "Self-growth begins where comfort ends." },
+    { id: 35, text: "Discipline creates freedom most people never experience." },
+    { id: 36, text: "You become reliable when your actions match your words." },
+    { id: 37, text: "Focus on progress, not approval." },
+    { id: 38, text: "Strong personalities are built through controlled adversity." },
+    { id: 39, text: "Awareness turns mistakes into lessons." },
+    { id: 40, text: "The strongest people manage themselves before managing others." },
+
+    { id: 41, text: "Delayed gratification is a superpower." },
+    { id: 42, text: "Mental clarity grows when distractions shrink." },
+    { id: 43, text: "Personal growth demands uncomfortable honesty." },
+    { id: 44, text: "Your mindset is your most valuable asset." },
+    { id: 45, text: "Character is revealed in consistency, not intensity." },
+    { id: 46, text: "Self-improvement is a lifelong responsibility." },
+    { id: 47, text: "Control your inputs if you want to control your outcomes." },
+    { id: 48, text: "Discipline outperforms talent when talent lacks structure." },
+    { id: 49, text: "A calm mind makes better decisions." },
+    { id: 50, text: "Mastery begins with managing yourself daily." }
+];
+
+export default quotes;

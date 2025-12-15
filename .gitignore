@@ -1,0 +1,70 @@
+# =========================
+# Dependencies
+# =========================
+node_modules/
+**/node_modules/
+
+# =========================
+# Environment files
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Build outputs
+# =========================
+dist/
+build/
+**/dist/
+**/build/
+
+# =========================
+# Vite / React / Frontend
+# =========================
+.vite/
+.vite/*
+frontend/dist/
+frontend/build/
+
+# =========================
+# Backend
+# =========================
+backend/dist/
+backend/build/
+
+# =========================
+# Logs
+# =========================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+*.log
+
+# =========================
+# Runtime / Cache
+# =========================
+.cache/
+.tmp/
+.temp/
+coverage/
+
+# =========================
+# OS / Editor junk
+# =========================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# =========================
+# Misc
+# =========================
+*.pid
+*.seed
+*.tsbuildinfo
