@@ -18,7 +18,7 @@ app.use(express.json());
 app.use(
   cors({
     origin: [
-      // "https://your-production-site.example.com",
+      "https://timily.vercel.app/",
       "http://localhost:5173"
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
