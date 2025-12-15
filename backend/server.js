@@ -18,7 +18,7 @@ app.use(express.json());
 app.use(
   cors({
     origin: [
-      "https://timilyy.vercel.app/",
+      "https://timily.vercel.app/",
       "http://localhost:5173"
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
