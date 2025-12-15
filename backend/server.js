@@ -9,28 +9,31 @@ import taskRouter from "./routes/taskRoutes.js";
 import userRouter from "./routes/userRoutes.js";
 
 const app = express();
-const port = process.env.PORT || 4000;
 
+/* ------------------ DB & Services ------------------ */
 connectDB();
 connectCloudinary();
 
+/* ------------------ Middleware ------------------ */
 app.use(express.json());
+
 app.use(
   cors({
     origin: [
-      // "https://your-production-site.example.com",
-      "http://localhost:5173"
+      "http://localhost:5173",
+      // add your frontend Vercel URL later
     ],
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization", "token"],
     credentials: true,
   })
 );
 
-// Routes
+/* ------------------ Routes ------------------ */
 app.use("/api/user", userRouter);
 app.use("/api/tasks", taskRouter);
 
-app.get("/", (req, res) => res.send("API working great"));
+app.get("/", (req, res) => {
+  res.status(200).send("API working great");
+});
 
-app.listen(port, () => console.log(`Server Started on http://localhost:${port}`));
+/* ------------------ EXPORT (IMPORTANT) ------------------ */
+export default app;
