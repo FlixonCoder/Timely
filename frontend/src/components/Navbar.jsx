@@ -33,7 +33,7 @@ const Navbar = () => {
                     to="/"
                     className="text-2xl font-bold text-blue-600 dark:text-blue-400 flex items-center gap-2"
                 >
-                    <span>Timely</span>
+                    <span>Timily</span>
                 </Link>
 
                 <div className="flex items-center gap-6">

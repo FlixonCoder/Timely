@@ -48,7 +48,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm">
                 <Link to="/dashboard" className="flex flex-col gap-1 group">
                     <span className="text-2xl font-bold text-blue-600 dark:text-blue-400 flex items-center gap-2 group-hover:scale-105 transition-transform duration-200">
-                        Timely
+                        Timily
                     </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400 font-medium group-hover:text-blue-500 transition-colors">
                         @{user?.username || "guest"}
