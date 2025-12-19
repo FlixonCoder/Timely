@@ -22,6 +22,8 @@ import {
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'react-toastify';
 
 // ===============================
 // Categories
@@ -45,7 +47,7 @@ const nextPriority = (p) =>
   ({ low: "medium", medium: "high", high: "low" }[p] || "medium");
 
 const nextStatus = (s) =>
-({ pending: "on-going", "on-going": "completed", completed: "pending" }[s] ||
+({ pending: "on-going", "on-going": "completed", completed: "cancelled", cancelled: "pending" }[s] ||
   "pending");
 
 const formatDate = (d) => {
@@ -104,7 +106,29 @@ const getRelativeDeadlineLabel = (deadline) => {
 // ===============================
 // UI: Badges and small components
 // ===============================
-const StatusBadge = ({ status, onClick }) => {
+const StatusIcon = ({ status, size = 12 }) => {
+  switch (status) {
+    case "completed": return <CheckCircle2 size={size} />;
+    case "cancelled": return <X size={size} />;
+    case "on-going": return <Clock size={size} />;
+    default: return <Circle size={size} />;
+  }
+};
+
+const StatusBadge = ({ status, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = React.useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const styles = {
     pending:
       "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700",
@@ -112,26 +136,51 @@ const StatusBadge = ({ status, onClick }) => {
       "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/40",
     completed:
       "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40",
+    cancelled:
+      "bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/40",
   };
+
+  const OPTIONS = ["pending", "on-going", "completed", "cancelled"];
+
   return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick?.();
-      }}
-      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5 capitalize ${styles[status] || styles.pending
-        }`}
-      title="Cycle status"
-    >
-      {status === "completed" ? (
-        <CheckCircle2 size={12} />
-      ) : status === "on-going" ? (
-        <Clock size={12} />
-      ) : (
-        <Circle size={12} />
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5 capitalize ${styles[status] || styles.pending
+          }`}
+        title="Change status"
+      >
+        <StatusIcon status={status} />
+        {status}
+        <ChevronDown size={10} className={`transform transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-2 w-32 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden z-[60] animate-in fade-in zoom-in-95 duration-200">
+          {OPTIONS.map((opt) => (
+            <button
+              key={opt}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange?.(opt);
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-medium transition-colors ${status === opt
+                ? "bg-slate-50 dark:bg-gray-700/50 text-indigo-600 dark:text-indigo-400"
+                : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-gray-700"
+                }`}
+            >
+              <StatusIcon status={opt} size={14} />
+              <span className="capitalize">{opt}</span>
+              {status === opt && <CheckCircle2 size={10} className="ml-auto" />}
+            </button>
+          ))}
+        </div>
       )}
-      {status}
-    </button>
+    </div>
   );
 };
 
@@ -666,7 +715,7 @@ const ConfirmDeleteModal = ({ isOpen, onClose, onConfirm }) => {
 const ScheduleTaskRow = ({
   task,
   onCyclePriority,
-  onCycleStatus,
+  onChangeStatus,
   onEdit,
   onDelete,
   onToggleSubtask,
@@ -674,7 +723,7 @@ const ScheduleTaskRow = ({
 }) => {
   const overdue = isOverdue(task.deadline, task.status);
   const relativeLabel =
-    task.status === "completed"
+    (task.status === "completed" || task.status === "cancelled")
       ? ""
       : getRelativeDeadlineLabel(task.deadline);
 
@@ -685,18 +734,24 @@ const ScheduleTaskRow = ({
   const progressPercent = totalSub > 0 ? (completedSub / totalSub) * 100 : 0;
 
   return (
-    <div
-      className={`group p-3 rounded-xl border border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-indigo-200 dark:hover:border-indigo-500/50 hover:shadow-sm transition-colors ${task.status === "completed" ? "cursor-default" : "cursor-pointer"
+    <motion.div
+      layout
+      layoutId={task._id}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+      className={`group p-3 rounded-xl border border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-indigo-200 dark:hover:border-indigo-500/50 hover:shadow-sm transition-colors ${(task.status === "completed" || task.status === "cancelled") ? "cursor-default" : "cursor-pointer"
         }`}
       onClick={() => {
-        if (task.status !== "completed") onEdit?.(task);
+        if (task.status !== "completed" && task.status !== "cancelled") onEdit?.(task);
       }}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-0.5">
             <h3
-              className={`text-sm font-semibold text-slate-800 dark:text-white truncate ${task.status === "completed" ? "line-through text-slate-400 dark:text-slate-500" : ""
+              className={`text-sm font-semibold text-slate-800 dark:text-white truncate ${(task.status === "completed" || task.status === "cancelled") ? "line-through text-slate-400 dark:text-slate-500" : ""
                 }`}
             >
               {task.title}
@@ -733,18 +788,23 @@ const ScheduleTaskRow = ({
               {subtasks.map(st => (
                 <div key={st._id} className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   <button
-                    onClick={() => onToggleSubtask?.(task._id, st._id, st.status)}
+                    onClick={() => {
+                      if (task.status !== 'completed' && task.status !== 'cancelled') {
+                        onToggleSubtask?.(task._id, st._id, st.status)
+                      }
+                    }}
                     className={`flex items-center justify-center w-4 h-4 rounded border transition-colors ${st.status === 'done' || st.status === 'completed'
                       ? 'bg-indigo-500 border-indigo-500 text-white'
                       : 'bg-transparent border-slate-300 dark:border-slate-600 hover:border-indigo-400'
-                      }`}
+                      } ${(task.status === 'completed' || task.status === 'cancelled') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={task.status === 'completed' || task.status === 'cancelled'}
                   >
                     {(st.status === 'done' || st.status === 'completed') && <CheckCircle2 size={10} />}
                   </button>
                   <span className={`text-xs ${st.status === 'done' || st.status === 'completed'
                     ? 'text-slate-400 dark:text-slate-500 line-through'
                     : 'text-slate-600 dark:text-slate-300'
-                    }`}>
+                    } ${(task.status === 'completed' || task.status === 'cancelled') ? 'text-slate-400 dark:text-slate-500' : ''}`}>
                     {st.name}
                   </span>
                 </div>
@@ -759,19 +819,23 @@ const ScheduleTaskRow = ({
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-1 shrink-0">
+        <div className={`flex flex-col items-end gap-1 shrink-0`}>
           <div className="flex items-center gap-2">
             {hasStatus && (
               <StatusBadge
                 status={task.status || "pending"}
-                onClick={() =>
-                  onCycleStatus?.(task._id, task.status || "pending")
+                onChange={(newStatus) =>
+                  onChangeStatus?.(task._id, newStatus)
                 }
               />
             )}
             <PriorityBadge
               priority={task.priority}
-              onCycle={() => onCyclePriority?.(task._id, task.priority)}
+              onCycle={() => {
+                if (task.status !== 'completed' && task.status !== 'cancelled') {
+                  onCyclePriority?.(task._id, task.priority)
+                }
+              }}
             />
           </div>
           <div
@@ -790,39 +854,34 @@ const ScheduleTaskRow = ({
             </span>
           )}
 
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-1">
-            <button
-              className={`transition-colors p-1 rounded-md ${task.status === "completed"
-                ? "text-slate-200 dark:text-slate-700 cursor-not-allowed"
-                : "text-slate-300 hover:text-slate-600 dark:hover:text-slate-200"
-                }`}
-              title={task.status === "completed" ? "Cannot edit completed task" : "Edit task"}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (task.status !== "completed") onEdit?.(task);
-              }}
-              disabled={task.status === "completed"}
-            >
-              <Pencil size={14} />
-            </button>
-            <button
-              className={`transition-colors p-1 rounded-md ${task.status === "completed"
-                ? "text-slate-200 dark:text-slate-700 cursor-not-allowed"
-                : "text-slate-300 hover:text-rose-600 dark:hover:text-rose-400"
-                }`}
-              title={task.status === "completed" ? "Cannot delete completed task" : "Delete task"}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (task.status !== "completed") onDelete?.(task._id);
-              }}
-              disabled={task.status === "completed"}
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
+          {/* Hide Edit/Delete buttons if completed or cancelled */}
+          {task.status !== "completed" && task.status !== "cancelled" && (
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-1">
+              <button
+                className="transition-colors p-1 rounded-md text-slate-300 hover:text-slate-600 dark:hover:text-slate-200"
+                title="Edit task"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit?.(task);
+                }}
+              >
+                <Pencil size={14} />
+              </button>
+              <button
+                className="transition-colors p-1 rounded-md text-slate-300 hover:text-rose-600 dark:hover:text-rose-400"
+                title="Delete task"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete?.(task._id);
+                }}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -840,6 +899,7 @@ const TaskManager = ({ onMenuClick }) => {
 
   // UI States
   const [showCompleted, setShowCompleted] = useState(false);
+  const [showCancelled, setShowCancelled] = useState(false);
 
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -916,10 +976,14 @@ const TaskManager = ({ onMenuClick }) => {
     await handleUpdate(id, { priority });
   };
 
-  const handleCycleStatus = async (id, current) => {
+  // Cycle Status (now handled via dropdown)
+  const handleStatusChange = async (id, status) => {
     if (!hasStatus) return;
-    const status = nextStatus(current);
-    await handleUpdate(id, { status });
+    const ok = await handleUpdate(id, { status });
+    if (ok) {
+      if (status === 'completed') toast.success("Task moved to Completed section");
+      if (status === 'cancelled') toast.success("Task moved to Cancelled section");
+    }
   };
 
   // Delete (with confirm modal)
@@ -1015,10 +1079,16 @@ const TaskManager = ({ onMenuClick }) => {
       thisWeek: [],
       later: [],
       noDate: [],
+      noDate: [],
       completed: [], // completed section
+      cancelled: [], // cancelled section
     };
 
     filteredTasks.forEach((task) => {
+      if (task.status === "cancelled") {
+        groups.cancelled.push(task);
+        return;
+      }
       // Completed tasks go into their own section, not overdue
       if (task.status === "completed") {
         groups.completed.push(task);
@@ -1045,7 +1115,7 @@ const TaskManager = ({ onMenuClick }) => {
   }, [filteredTasks]);
 
   // Stats
-  const total = tasks.length;
+  const total = tasks.filter(t => t.status !== 'cancelled').length;
   const urgent = tasks.filter((t) => t.priority === "high").length;
   const completed = hasStatus
     ? tasks.filter((t) => t.status === "completed").length
@@ -1069,8 +1139,8 @@ const TaskManager = ({ onMenuClick }) => {
     const year = now.getFullYear();
 
     tasks.forEach((t) => {
-      // Exclude completed tasks from "Upcoming/Due" counts
-      if (t.status === "completed") return;
+      // Exclude completed/cancelled tasks from "Upcoming/Due" counts
+      if (t.status === "completed" || t.status === "cancelled") return;
 
       const diff = getDayDiffFromToday(t.deadline);
       if (diff === null) return;
@@ -1373,6 +1443,11 @@ const TaskManager = ({ onMenuClick }) => {
                   title: "Completed",
                   accent: "text-emerald-600 dark:text-emerald-400",
                 },
+                {
+                  key: "cancelled",
+                  title: "Cancelled",
+                  accent: "text-rose-600 dark:text-rose-400",
+                },
               ].map(({ key, title, accent }) => {
                 const list = scheduleGroups[key];
                 if (!list || list.length === 0) return null;
@@ -1401,18 +1476,64 @@ const TaskManager = ({ onMenuClick }) => {
                           }`}
                       >
                         <div className="min-h-0 space-y-2">
-                          {list.map((task) => (
-                            <ScheduleTaskRow
-                              key={task._id}
-                              task={task}
-                              hasStatus={hasStatus}
-                              onCyclePriority={handleCyclePriority}
-                              onCycleStatus={handleCycleStatus}
-                              onEdit={handleOpenEdit}
-                              onDelete={requestDelete}
-                              onToggleSubtask={handleToggleSubtask}
-                            />
-                          ))}
+                          <AnimatePresence mode="popLayout">
+                            {list.map((task) => (
+                              <ScheduleTaskRow
+                                key={task._id}
+                                task={task}
+                                hasStatus={hasStatus}
+                                onCyclePriority={handleCyclePriority}
+                                onChangeStatus={handleStatusChange}
+                                onEdit={handleOpenEdit}
+                                onDelete={requestDelete}
+                                onToggleSubtask={handleToggleSubtask}
+                              />
+                            ))}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                    </section>
+                  );
+                }
+
+                // SPECIAL HANDLING FOR CANCELLED
+                if (key === 'cancelled') {
+                  return (
+                    <section key={key} className="border-t border-gray-100 dark:border-gray-800 pt-4 mt-6">
+                      <button
+                        onClick={() => setShowCancelled(!showCancelled)}
+                        className="flex items-center gap-2 w-full text-left group"
+                      >
+                        <div className={`p-1 rounded-md transition-transform duration-300 ${showCancelled ? 'rotate-180' : ''}`}>
+                          <ChevronDown size={18} className="text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" />
+                        </div>
+                        <h3 className={`text-sm font-semibold ${accent}`}>
+                          {title}
+                        </h3>
+                        <span className="text-xs text-gray-400">
+                          {list.length} task{list.length !== 1 ? "s" : ""}
+                        </span>
+                      </button>
+
+                      <div
+                        className={`grid transition-all duration-500 ease-in-out overflow-hidden ${showCancelled ? 'grid-rows-[1fr] opacity-100 mt-3' : 'grid-rows-[0fr] opacity-0 mt-0'
+                          }`}
+                      >
+                        <div className="min-h-0 space-y-2">
+                          <AnimatePresence mode="popLayout">
+                            {list.map((task) => (
+                              <ScheduleTaskRow
+                                key={task._id}
+                                task={task}
+                                hasStatus={hasStatus}
+                                onCyclePriority={handleCyclePriority}
+                                onChangeStatus={handleStatusChange}
+                                onEdit={handleOpenEdit}
+                                onDelete={requestDelete}
+                                onToggleSubtask={handleToggleSubtask}
+                              />
+                            ))}
+                          </AnimatePresence>
                         </div>
                       </div>
                     </section>
@@ -1431,18 +1552,20 @@ const TaskManager = ({ onMenuClick }) => {
                       </span>
                     </div>
                     <div className="space-y-2">
-                      {list.map((task) => (
-                        <ScheduleTaskRow
-                          key={task._id}
-                          task={task}
-                          hasStatus={hasStatus}
-                          onCyclePriority={handleCyclePriority}
-                          onCycleStatus={handleCycleStatus}
-                          onEdit={handleOpenEdit}
-                          onDelete={requestDelete}
-                          onToggleSubtask={handleToggleSubtask}
-                        />
-                      ))}
+                      <AnimatePresence mode="popLayout">
+                        {list.map((task) => (
+                          <ScheduleTaskRow
+                            key={task._id}
+                            task={task}
+                            hasStatus={hasStatus}
+                            onCyclePriority={handleCyclePriority}
+                            onChangeStatus={handleStatusChange}
+                            onEdit={handleOpenEdit}
+                            onDelete={requestDelete}
+                            onToggleSubtask={handleToggleSubtask}
+                          />
+                        ))}
+                      </AnimatePresence>
                     </div>
                   </section>
                 );

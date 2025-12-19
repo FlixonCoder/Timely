@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import { Link } from 'react-router-dom';
-import { Menu, ArrowRight, CheckCircle2, Circle, Clock, Calendar } from 'lucide-react';
+import { Menu, ArrowRight, CheckCircle2, Circle, Clock, Calendar, Sparkles } from 'lucide-react';
 import quotes from '../assets/quotes';
 
 const Dashboard = ({ onMenuClick }) => {
@@ -29,8 +29,8 @@ const Dashboard = ({ onMenuClick }) => {
                 const { data } = await api.get("/api/tasks/get-tasks");
                 const list = Array.isArray(data) ? data : data?.tasks || [];
 
-                // Filter pending and sort by priority/deadline
-                const pending = list.filter(t => t.status !== 'completed');
+                // Filter pending/on-going tasks (exclude completed and cancelled)
+                const pending = list.filter(t => t.status !== 'completed' && t.status !== 'cancelled');
 
                 // Simple sort: High priority first, then by deadline
                 pending.sort((a, b) => {
@@ -134,9 +134,13 @@ const Dashboard = ({ onMenuClick }) => {
                                 ))}
                             </div>
                         ) : (
-                            <div className="p-8 text-center text-gray-500">
-                                <p>No pending tasks! Great job.</p>
-                                <Link to="/task-manager" className="text-indigo-600 hover:underline text-sm mt-2 inline-block">
+                            <div className="p-8 text-center text-gray-500 flex flex-col items-center">
+                                <span className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-full text-indigo-500 dark:text-indigo-400 mb-3">
+                                    <Sparkles size={24} />
+                                </span>
+                                <p className="text-lg font-medium text-gray-800 dark:text-white">You're all caught up!</p>
+                                <p className="text-sm mt-1">No pending tasks for now.</p>
+                                <Link to="/task-manager" className="text-indigo-600 hover:underline text-sm mt-3 inline-block font-medium">
                                     Create a new task
                                 </Link>
                             </div>

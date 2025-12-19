@@ -55,6 +55,9 @@ const getTasks = async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     let tasks = user.tasks || [];
+    /* Filter out deleted tasks by default */
+    tasks = tasks.filter(t => t.status !== "deleted");
+
     const { status, priority, category } = req.query;
     if (status) tasks = tasks.filter(t => t.status === status);
     if (priority) tasks = tasks.filter(t => t.priority === priority);
@@ -126,9 +129,9 @@ const deleteTask = async (req, res) => {
     const taskId = req.params.id;
     if (!userId || !taskId) return res.status(400).json({ success: false, message: "userId and taskId required" });
 
-    const updated = await userModel.findByIdAndUpdate(
-      userId,
-      { $pull: { tasks: { _id: taskId } } },
+    const updated = await userModel.findOneAndUpdate(
+      { _id: userId, "tasks._id": taskId },
+      { $set: { "tasks.$.status": "deleted" } },
       { new: true }
     ).select("-password");
 

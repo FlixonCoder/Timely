@@ -12,6 +12,8 @@ import Profile from './pages/Profile'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { LoadingProvider, useLoading } from './context/LoadingContext';
+import GlobalLoader from './components/GlobalLoader';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -69,12 +71,24 @@ const MainLayout = () => {
   );
 };
 
+const AppInner = () => {
+  const { isLoading } = useLoading();
+  return (
+    <>
+      {isLoading && <GlobalLoader />}
+      <AuthProvider>
+        <MainLayout />
+        <ToastContainer position="bottom-right" autoClose={3000} />
+      </AuthProvider>
+    </>
+  );
+};
+
 const App = () => {
   return (
-    <AuthProvider>
-      <MainLayout />
-      <ToastContainer position="bottom-right" autoClose={3000} />
-    </AuthProvider>
+    <LoadingProvider>
+      <AppInner />
+    </LoadingProvider>
   )
 }
 

@@ -22,7 +22,7 @@ const TaskSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ["pending", "on-going", "completed", "blocked"],
+            enum: ["pending", "on-going", "completed", "cancelled", "blocked", "deleted"],
             default: "pending",
         },
         deadline: { type: Date, default: null },
