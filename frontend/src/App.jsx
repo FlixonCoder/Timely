@@ -1,5 +1,6 @@
 
 import React from 'react'
+import { AnimatePresence } from 'framer-motion';
 import { Route, Router, Routes, Navigate } from 'react-router-dom'
 import Home from './pages/Home'
 import Navbar from './components/Navbar'
@@ -75,7 +76,9 @@ const AppInner = () => {
   const { isLoading } = useLoading();
   return (
     <>
-      {isLoading && <GlobalLoader />}
+      <AnimatePresence>
+        {isLoading && <GlobalLoader />}
+      </AnimatePresence>
       <AuthProvider>
         <MainLayout />
         <ToastContainer position="bottom-right" autoClose={3000} />

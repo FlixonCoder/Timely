@@ -1,8 +1,15 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 
 const GlobalLoader = () => {
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/20 backdrop-blur-sm transition-all duration-300">
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/20 backdrop-blur-sm"
+        >
             <div className="relative">
                 {/* Outer Ring */}
                 <div className="w-24 h-24 rounded-full border-4 border-slate-200/20 shadow-[0_0_15px_rgba(0,0,0,0.1)] animate-[spin_3s_linear_infinite]"></div>
@@ -25,7 +32,7 @@ const GlobalLoader = () => {
                     </span>
                 </div>
             </div>
-        </div>
+        </motion.div>
     );
 };
 

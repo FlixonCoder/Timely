@@ -1,5 +1,6 @@
 // controllers/userController.js
 import userModel from "../models/userModel.js";
+import userDataModel from "../models/userDataModel.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
@@ -35,6 +36,10 @@ const registerUser = async (req, res) => {
         });
 
         const user = await newUser.save();
+
+        // [NEW] Initialize User Data
+        await userDataModel.create({ userId: user._id });
+
         const token = createToken(user._id);
 
         res.status(201).json({
@@ -66,6 +71,9 @@ const loginUser = async (req, res) => {
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(401).json({ success: false, message: "Invalid credentials" });
+
+        // [NEW] Update Last Active
+        await userDataModel.findOneAndUpdate({ userId: user._id }, { lastActive: new Date() });
 
         const token = createToken(user._id);
         res.status(200).json({
@@ -176,6 +184,9 @@ const deleteUser = async (req, res) => {
     try {
         const userId = req.userId || req.body.userId || req.params.userId;
         if (!userId) return res.status(400).json({ success: false, message: "userId required" });
+
+        // [NEW] Cleanup User Data
+        await userDataModel.findOneAndDelete({ userId });
 
         const deleted = await userModel.findByIdAndDelete(userId);
         if (!deleted) return res.status(404).json({ success: false, message: "User not found" });

@@ -19,7 +19,8 @@ app.use(
   cors({
     origin: [
       `${process.env.CLIENT_URL}`,
-      "http://localhost:5173"
+      "http://localhost:5173",
+      "http://localhost:5174"
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization", "token"],
@@ -28,8 +29,11 @@ app.use(
 );
 
 // Routes
+import adminRouter from "./routes/adminRoute.js";
+
 app.use("/api/user", userRouter);
 app.use("/api/tasks", taskRouter);
+app.use("/api/admin", adminRouter);
 
 app.get("/", (req, res) => res.send("API working great"));
 
