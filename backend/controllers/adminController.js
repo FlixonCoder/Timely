@@ -67,12 +67,25 @@ const getAllUsers = async (req, res) => {
     try {
         const users = await userModel.find({}).select('-password').sort({ createdAt: -1 });
 
-        // Populate with UserData
+        // Populate with UserData and calculate task stats
         const usersWithData = await Promise.all(users.map(async (user) => {
             const data = await userDataModel.findOne({ userId: user._id });
+
+            // Calculate task stats
+            const taskStats = {
+                completed: user.tasks.filter(t => t.status === 'completed').length,
+                pending: user.tasks.filter(t => t.status === 'pending').length,
+                cancelled: user.tasks.filter(t => t.status === 'cancelled').length,
+                deleted: user.tasks.filter(t => t.status === 'deleted').length
+            };
+
+            const userObj = user.toObject();
+            delete userObj.tasks; // Remove raw tasks array
+
             return {
-                ...user.toObject(),
-                userData: data || { totalTasks: 0, lastActive: null, taskCompletionStatus: {} }
+                ...userObj,
+                userData: data || { totalTasks: 0, lastActive: null, taskCompletionStatus: {} },
+                taskStats
             };
         }));
 
@@ -84,4 +97,106 @@ const getAllUsers = async (req, res) => {
     }
 }
 
-export { adminLogin, getDashboardStats, getAllUsers };
+export { adminLogin, getDashboardStats, getAllUsers, getAnalyticsData };
+
+const getAnalyticsData = async (req, res) => {
+    try {
+        const today = new Date();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+
+        // 1. New Users (Last 30 Days)
+        const newUsers = await userModel.aggregate([
+            {
+                $match: {
+                    createdAt: { $gte: thirtyDaysAgo }
+                }
+            },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        // 2. Tasks Created (Last 30 Days) - Using _id timestamp
+        const tasksCreated = await userModel.aggregate([
+            { $unwind: "$tasks" },
+            {
+                $addFields: {
+                    taskCreatedAt: { $convert: { input: "$tasks._id", to: "date" } }
+                }
+            },
+            {
+                $match: {
+                    taskCreatedAt: { $gte: thirtyDaysAgo }
+                }
+            },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$taskCreatedAt" } },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        // 3. Tasks Completed (Last 30 Days) - Using completedAt
+        const tasksCompleted = await userModel.aggregate([
+            { $unwind: "$tasks" },
+            {
+                $match: {
+                    "tasks.status": "completed",
+                    "tasks.completedAt": { $gte: thirtyDaysAgo }
+                }
+            },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$tasks.completedAt" } },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        // Format data for frontend (merge dates)
+        const dateMap = new Map();
+
+        // Helper to fill map
+        const fillMap = (data, key) => {
+            data.forEach(item => {
+                const date = item._id;
+                if (!dateMap.has(date)) {
+                    dateMap.set(date, { date, users: 0, tasksCreated: 0, tasksCompleted: 0 });
+                }
+                dateMap.get(date)[key] = item.count;
+            });
+        };
+
+        fillMap(newUsers, 'users');
+        fillMap(tasksCreated, 'tasksCreated');
+        fillMap(tasksCompleted, 'tasksCompleted');
+
+        // Convert map to sorted array and fill missing days
+        const analyticsData = [];
+        let currentDate = new Date(thirtyDaysAgo);
+
+        while (currentDate <= today) {
+            const dateStr = currentDate.toISOString().split('T')[0];
+            if (dateMap.has(dateStr)) {
+                analyticsData.push(dateMap.get(dateStr));
+            } else {
+                analyticsData.push({ date: dateStr, users: 0, tasksCreated: 0, tasksCompleted: 0 });
+            }
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        res.json({ success: true, analytics: analyticsData });
+
+    } catch (error) {
+        console.error(error);
+        res.json({ success: false, message: error.message });
+    }
+}

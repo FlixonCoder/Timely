@@ -25,6 +25,7 @@ const TaskSchema = new mongoose.Schema(
             enum: ["pending", "on-going", "completed", "cancelled", "blocked", "deleted"],
             default: "pending",
         },
+        completedAt: { type: Date, default: null },
         deadline: { type: Date, default: null },
         category: { type: String, default: "" },
         subtasks: { type: [SubtaskSchema], default: [] },
