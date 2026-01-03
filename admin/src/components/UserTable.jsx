@@ -1,5 +1,5 @@
 import React from 'react';
-import { MoreHorizontal, User, Clock, CheckCircle } from 'lucide-react';
+import { User, Clock, CheckCircle } from 'lucide-react';
 
 const UserTable = ({ users }) => {
 
@@ -37,7 +37,7 @@ const UserTable = ({ users }) => {
                             <th className="px-6 py-3">Status</th>
                             <th className="px-6 py-3">Total Tasks</th>
                             <th className="px-6 py-3">Last Active</th>
-                            <th className="px-6 py-3 text-right">Actions</th>
+
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -86,11 +86,7 @@ const UserTable = ({ users }) => {
                                         {formatDate(user.userData?.lastActive)}
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-                                        <MoreHorizontal size={18} />
-                                    </button>
-                                </td>
+
                             </tr>
                         ))}
                     </tbody>

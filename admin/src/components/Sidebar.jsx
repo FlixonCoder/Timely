@@ -5,7 +5,8 @@ import {
     Users,
     Settings,
     LogOut,
-    ShieldCheck
+    ShieldCheck,
+    Activity
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -20,6 +21,7 @@ const Sidebar = () => {
     const navItems = [
         { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
         { icon: Users, label: "Users", path: "/users" },
+        { icon: Activity, label: "Analytics", path: "/analytics" },
         { icon: Settings, label: "Settings", path: "/settings" },
     ];
 
