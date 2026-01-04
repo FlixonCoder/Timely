@@ -1,37 +1,5 @@
 import mongoose from "mongoose";
 
-const SubtaskSchema = new mongoose.Schema(
-    {
-        name: { type: String, required: true },
-        status: {
-            type: String,
-            enum: ["todo", "in-progress", "done"],
-            default: "todo",
-        },
-    }
-);
-
-const TaskSchema = new mongoose.Schema(
-    {
-        title: { type: String, required: true },
-        description: { type: String, default: "" },
-        priority: {
-            type: String,
-            enum: ["low", "medium", "high", "urgent"],
-            default: "medium",
-        },
-        status: {
-            type: String,
-            enum: ["pending", "on-going", "completed", "cancelled", "blocked", "deleted"],
-            default: "pending",
-        },
-        completedAt: { type: Date, default: null },
-        deadline: { type: Date, default: null },
-        category: { type: String, default: "" },
-        subtasks: { type: [SubtaskSchema], default: [] },
-    }
-);
-
 const userSchema = new mongoose.Schema(
     {
         name: { type: String, required: true },
@@ -40,11 +8,18 @@ const userSchema = new mongoose.Schema(
         password: { type: String, required: true },
         image: { type: String, default: "" },
         dob: { type: Date, default: null },
-        tasks: { type: [TaskSchema], default: [] },
+
+        // References only (no embedded heavy data)
+        habits: [{ type: mongoose.Schema.Types.ObjectId, ref: "Habit" }],
     },
-    { timestamps: true, versionKey: false, minimize: false }
+    {
+        timestamps: true,
+        versionKey: false,
+        minimize: false,
+    }
 );
 
-const userModel = mongoose.models.user || mongoose.model("user", userSchema);
+const User =
+    mongoose.models.User || mongoose.model("User", userSchema);
 
-export default userModel;
+export default User;

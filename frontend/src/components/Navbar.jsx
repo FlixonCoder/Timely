@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Sun, Moon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 const Navbar = () => {
+    const { pathname } = useLocation()
+    const isHome = pathname === '/'
+
     const [darkMode, setDarkMode] = useState(() => {
         return (
             localStorage.getItem('theme') === 'dark' ||
@@ -27,7 +30,12 @@ const Navbar = () => {
     const toggleTheme = () => setDarkMode(!darkMode)
 
     return (
-        <nav className="bg-white dark:bg-gray-900 shadow-md p-4 sticky top-0 z-50 border-b border-gray-200 dark:border-gray-800 transition-colors duration-300">
+        <nav
+            className={`transition-all duration-300 z-50 p-4 ${isHome
+                    ? 'fixed top-0 left-0 right-0 bg-transparent'
+                    : 'sticky top-0 bg-white dark:bg-gray-900 shadow-md border-b border-gray-200 dark:border-gray-800'
+                }`}
+        >
             <div className="container mx-auto flex justify-between items-center">
                 <Link
                     to="/"
@@ -37,14 +45,7 @@ const Navbar = () => {
                 </Link>
 
                 <div className="flex items-center gap-6">
-                    <div className="space-x-4 hidden md:block">
-                        <Link
-                            to="/"
-                            className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition font-medium"
-                        >
-                            Home
-                        </Link>
-                    </div>
+                    {/* Home Link Removed */}
 
                     <div className="flex items-center gap-4">
                         <Link
@@ -56,7 +57,10 @@ const Navbar = () => {
 
                         <button
                             onClick={toggleTheme}
-                            className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className={`p-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${isHome
+                                    ? 'bg-white/10 hover:bg-white/20 text-gray-800 dark:text-gray-200 backdrop-blur-sm'
+                                    : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+                                }`}
                             aria-label="Toggle Dark Mode"
                         >
                             {darkMode ? <Sun size={20} /> : <Moon size={20} />}

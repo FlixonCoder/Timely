@@ -1,236 +1,325 @@
 // controllers/taskController.js
-import userModel from "../models/userModel.js";
+import Task from "../models/taskModel.js";
 import userDataModel from "../models/userDataModel.js";
-import mongoose from "mongoose";
 
-/* helper: get userId (auth middleware sets req.body.userId) */
-const getUserIdFromReq = (req) => req.userId || req.body.userId || req.params.userId || req.query.userId;
+/* --------------------------------------------------
+   Helper: userId (EXPECTED from auth middleware)
+-------------------------------------------------- */
+const getUserIdFromReq = (req) => req.userId;
 
-/* ADD TASK -> appends into user.tasks */
+/* --------------------------------------------------
+   ADD TASK
+-------------------------------------------------- */
 const addTask = async (req, res) => {
   try {
     const userId = getUserIdFromReq(req);
-    if (!userId) return res.status(400).json({ success: false, message: "userId required" });
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
 
-    const { title, description = "", priority = "medium", status = "pending", deadline = null, category = "", subtasks = [] } = req.body;
-    if (!title) return res.status(400).json({ success: false, message: "Task title is required" });
+    const {
+      title,
+      description = "",
+      priority = "medium",
+      status = "pending",
+      deadline = null,
+      category = "",
+      subtasks = [],
+    } = req.body;
 
-    const normalizedSubtasks = (Array.isArray(subtasks) ? subtasks : []).map(st => ({
-      name: st.name || "",
-      status: st.status || "todo"
-    }));
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        message: "Task title is required",
+      });
+    }
 
-    const taskObj = {
+    const normalizedSubtasks = Array.isArray(subtasks)
+      ? subtasks.map((st) => ({
+        name: st.name,
+        status: st.status || "todo",
+      }))
+      : [];
+
+    const task = await Task.create({
+      userId,
       title,
       description,
       priority,
       status,
       deadline: deadline ? new Date(deadline) : null,
       category,
-      subtasks: normalizedSubtasks
-    };
+      subtasks: normalizedSubtasks,
+    });
 
-    const updated = await userModel.findByIdAndUpdate(
-      userId,
-      { $push: { tasks: taskObj } },
-      { new: true, runValidators: true }
-    ).select("-password");
-
-    if (!updated) return res.status(404).json({ success: false, message: "User not found" });
-
-    // [NEW] Update User Stats
+    // Update user metrics
     await userDataModel.findOneAndUpdate(
       { userId },
       {
         $inc: { totalTasks: 1 },
-        $set: { lastActive: new Date() }
+        $set: { lastActive: new Date() },
       },
       { upsert: true }
     );
 
-    const addedTask = updated.tasks[updated.tasks.length - 1];
-    res.status(201).json({ success: true, message: "Task added", task: addedTask, user: updated });
+    return res.status(201).json({
+      success: true,
+      task,
+    });
   } catch (error) {
     console.error("addTask:", error);
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/* GET TASKS for user (supports optional query filters) */
+/* --------------------------------------------------
+   GET TASKS
+-------------------------------------------------- */
 const getTasks = async (req, res) => {
   try {
     const userId = getUserIdFromReq(req);
-    if (!userId) return res.status(400).json({ success: false, message: "userId required" });
-
-    const user = await userModel.findById(userId).select("tasks -_id");
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
-
-    let tasks = user.tasks || [];
-    /* Filter out deleted tasks by default */
-    tasks = tasks.filter(t => t.status !== "deleted");
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
 
     const { status, priority, category } = req.query;
-    if (status) tasks = tasks.filter(t => t.status === status);
-    if (priority) tasks = tasks.filter(t => t.priority === priority);
-    if (category) tasks = tasks.filter(t => t.category === category);
 
-    res.status(200).json({ success: true, tasks });
+    const query = { userId };
+
+    // Exclude deleted by default
+    if (status) query.status = status;
+    else query.status = { $ne: "deleted" };
+
+    if (priority) query.priority = priority;
+    if (category) query.category = category;
+
+    const tasks = await Task.find(query).sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      tasks,
+    });
   } catch (error) {
     console.error("getTasks:", error);
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/* UPDATE TASK fields
-   Route uses :id (taskId) to match your routes.
-*/
+/* --------------------------------------------------
+   UPDATE TASK
+-------------------------------------------------- */
 const updateTask = async (req, res) => {
   try {
     const userId = getUserIdFromReq(req);
     const taskId = req.params.id;
-    if (!userId || !taskId) return res.status(400).json({ success: false, message: "userId and taskId required" });
 
-    // [NEW] Update Last Active
-    await userDataModel.findOneAndUpdate({ userId }, { lastActive: new Date() });
+    if (!userId || !taskId) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing parameters",
+      });
+    }
 
-    const allowed = ["title", "description", "priority", "status", "deadline", "category", "subtasks"];
-    const setObj = {};
-    allowed.forEach(k => {
-      if (req.body[k] !== undefined) {
-        setObj[`tasks.$.${k}`] = k === "deadline" && req.body[k] ? new Date(req.body[k]) : req.body[k];
+    await userDataModel.findOneAndUpdate(
+      { userId },
+      { $set: { lastActive: new Date() } }
+    );
+
+    const allowedFields = [
+      "title",
+      "description",
+      "priority",
+      "status",
+      "deadline",
+      "category",
+      "subtasks",
+    ];
+
+    const updateData = {};
+
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        updateData[field] =
+          field === "deadline" && req.body[field]
+            ? new Date(req.body[field])
+            : req.body[field];
       }
     });
 
-    if (Object.keys(setObj).length === 0) return res.status(400).json({ success: false, message: "No valid fields provided to update" });
-
-    // Check previous status for metrics IF status is changing to 'completed'
-    let metricsUpdate = {};
-    if (setObj["tasks.$.status"] === "completed") {
-      const userDoc = await userModel.findOne({ _id: userId }, { "tasks": { $elemMatch: { _id: taskId } } });
-      const taskDoc = userDoc?.tasks?.[0];
-      // Only count if it wasn't already completed
-      if (taskDoc && taskDoc.status !== "completed") {
-        const now = new Date();
-        const deadline = taskDoc.deadline ? new Date(taskDoc.deadline) : null;
-
-        if (deadline) {
-          const diffHours = (deadline - now) / (1000 * 60 * 60); // +ve = early, -ve = late
-
-          if (diffHours >= 24) {
-            metricsUpdate = { $inc: { "taskCompletionStatus.veryEarly": 1 } };
-          } else if (diffHours > 0) {
-            metricsUpdate = { $inc: { "taskCompletionStatus.early": 1 } };
-          } else if (diffHours >= -1) { // Within 1 hour late -> Ontime
-            metricsUpdate = { $inc: { "taskCompletionStatus.ontime": 1 } };
-          } else {
-            metricsUpdate = { $inc: { "taskCompletionStatus.late": 1 } };
-          }
-        } else {
-          // No deadline = treat as ontime or ignore? Let's treat as ontime for now or ignore. 
-          // User requirement implies tracking stats, usually related to deadlines. 
-          // We'll increment 'ontime' as a safe default for no-deadline tasks to track completion activity.
-          metricsUpdate = { $inc: { "taskCompletionStatus.ontime": 1 } };
-        }
+    // Handle completedAt
+    if (updateData.status) {
+      if (updateData.status === "completed") {
+        updateData.completedAt = new Date();
+      } else if (updateData.status !== "deleted") {
+        updateData.completedAt = null;
       }
     }
 
-    if (metricsUpdate.$inc) {
-      await userDataModel.findOneAndUpdate({ userId }, metricsUpdate);
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid fields provided",
+      });
     }
 
-    const updated = await userModel.findOneAndUpdate(
-      { _id: userId, "tasks._id": taskId },
-      { $set: setObj },
-      { new: true, runValidators: true }
-    ).select("-password");
+    const existingTask = await Task.findOne({ _id: taskId, userId });
+    if (!existingTask) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found",
+      });
+    }
 
-    if (!updated) return res.status(404).json({ success: false, message: "User or Task not found" });
+    /* ---------- Metrics (Completion Timing) ---------- */
+    if (
+      updateData.status === "completed" &&
+      existingTask.status !== "completed"
+    ) {
+      const now = new Date();
+      const deadline = existingTask.deadline;
 
-    // --- AUTO-COMPLETION LOGIC (Top-Down) ---
-    // If task status is updated, sync subtasks
-    if (setObj["tasks.$.status"]) {
-      const newStatus = setObj["tasks.$.status"];
-      const subtaskStatus = newStatus === "completed" ? "done" : "todo";
+      let metricKey = "ontime";
 
-      await userModel.updateMany(
-        { _id: userId, "tasks._id": taskId },
-        { $set: { "tasks.$[t].subtasks.$[].status": subtaskStatus } },
-        { arrayFilters: [{ "t._id": new mongoose.Types.ObjectId(taskId) }] }
+      if (deadline) {
+        const diffHours = (deadline - now) / (1000 * 60 * 60);
+        if (diffHours >= 24) metricKey = "veryEarly";
+        else if (diffHours > 0) metricKey = "early";
+        else if (diffHours >= -1) metricKey = "ontime";
+        else metricKey = "late";
+      }
+
+      await userDataModel.findOneAndUpdate(
+        { userId },
+        { $inc: { [`taskCompletionStatus.${metricKey}`]: 1 } }
       );
     }
 
-    // Fetch fresh to get the subtask updates
-    const finalUser = await userModel.findById(userId).select("-password");
-    if (!finalUser) return res.status(404).json({ success: false, message: "User not found" });
+    /* ---------- Auto-update subtasks ---------- */
+    if (
+      updateData.status &&
+      !updateData.subtasks &&
+      updateData.status !== "deleted"
+    ) {
+      const subtaskStatus =
+        updateData.status === "completed"
+          ? "done"
+          : updateData.status === "pending" ||
+            updateData.status === "on-going"
+            ? "todo"
+            : null;
 
-    const task = finalUser.tasks.find(t => String(t._id) === String(taskId));
-    res.status(200).json({ success: true, message: "Task updated", task, user: finalUser });
+      if (subtaskStatus) {
+        await Task.updateOne(
+          { _id: taskId, userId },
+          { $set: { "subtasks.$[].status": subtaskStatus } }
+        );
+      }
+    }
+
+    const updatedTask = await Task.findOneAndUpdate(
+      { _id: taskId, userId },
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      task: updatedTask,
+    });
   } catch (error) {
     console.error("updateTask:", error);
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/* DELETE TASK (uses :id) */
+/* --------------------------------------------------
+   DELETE TASK (SOFT DELETE)
+-------------------------------------------------- */
 const deleteTask = async (req, res) => {
   try {
     const userId = getUserIdFromReq(req);
     const taskId = req.params.id;
-    if (!userId || !taskId) return res.status(400).json({ success: false, message: "userId and taskId required" });
 
-    // [NEW] Update Last Active
-    await userDataModel.findOneAndUpdate({ userId }, { lastActive: new Date() });
+    if (!userId || !taskId) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing parameters",
+      });
+    }
 
-    const updated = await userModel.findOneAndUpdate(
-      { _id: userId, "tasks._id": taskId },
-      { $set: { "tasks.$.status": "deleted" } },
+    await userDataModel.findOneAndUpdate(
+      { userId },
+      { $set: { lastActive: new Date() } }
+    );
+
+    const updatedTask = await Task.findOneAndUpdate(
+      { _id: taskId, userId },
+      { $set: { status: "deleted" } },
       { new: true }
-    ).select("-password");
+    );
 
-    if (!updated) return res.status(404).json({ success: false, message: "User not found or task not present" });
+    if (!updatedTask) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found",
+      });
+    }
 
-    res.status(200).json({ success: true, message: "Task deleted", user: updated });
+    return res.status(200).json({
+      success: true,
+      message: "Task deleted",
+    });
   } catch (error) {
     console.error("deleteTask:", error);
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/* SUBTASKS: add, update, delete */
-
-/* ADD SUBTASK -> POST /api/tasks/:id/subtasks */
+/* --------------------------------------------------
+   SUBTASKS
+-------------------------------------------------- */
 const addSubtask = async (req, res) => {
   try {
     const userId = getUserIdFromReq(req);
     const taskId = req.params.id;
     const { name, status = "todo" } = req.body;
 
-    if (!userId || !taskId || !name) return res.status(400).json({ success: false, message: "userId, taskId and subtask name required" });
+    if (!userId || !taskId || !name) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing parameters",
+      });
+    }
 
-    // [NEW] Update Last Active
-    await userDataModel.findOneAndUpdate({ userId }, { lastActive: new Date() });
+    await userDataModel.findOneAndUpdate(
+      { userId },
+      { $set: { lastActive: new Date() } }
+    );
 
-    const subtaskObj = { _id: new mongoose.Types.ObjectId(), name, status };
-
-    const updated = await userModel.findOneAndUpdate(
-      { _id: userId, "tasks._id": taskId },
-      { $push: { "tasks.$.subtasks": subtaskObj } },
+    const updatedTask = await Task.findOneAndUpdate(
+      { _id: taskId, userId },
+      { $push: { subtasks: { name, status } } },
       { new: true, runValidators: true }
-    ).select("-password");
+    );
 
-    if (!updated) return res.status(404).json({ success: false, message: "User or Task not found" });
+    if (!updatedTask) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found",
+      });
+    }
 
-    const task = updated.tasks.find(t => String(t._id) === String(taskId));
-    const added = task.subtasks.find(s => String(s._id) === String(subtaskObj._id));
-
-    res.status(201).json({ success: true, message: "Subtask added", subtask: added, task, user: updated });
+    return res.status(201).json({
+      success: true,
+      subtask: updatedTask.subtasks.at(-1),
+      task: updatedTask,
+    });
   } catch (error) {
     console.error("addSubtask:", error);
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/* UPDATE SUBTASK -> PUT /api/tasks/:id/subtasks/:subtaskId */
 const updateSubtask = async (req, res) => {
   try {
     const userId = getUserIdFromReq(req);
@@ -238,84 +327,95 @@ const updateSubtask = async (req, res) => {
     const subtaskId = req.params.subtaskId;
     const { name, status } = req.body;
 
-    if (!userId || !taskId || !subtaskId) return res.status(400).json({ success: false, message: "userId, taskId and subtaskId required" });
+    if (!userId || !taskId || !subtaskId) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing parameters",
+      });
+    }
 
-    // [NEW] Update Last Active
-    await userDataModel.findOneAndUpdate({ userId }, { lastActive: new Date() });
+    await userDataModel.findOneAndUpdate(
+      { userId },
+      { $set: { lastActive: new Date() } }
+    );
 
-    const setObj = {};
-    if (name !== undefined) setObj["tasks.$[t].subtasks.$[s].name"] = name;
-    if (status !== undefined) setObj["tasks.$[t].subtasks.$[s].status"] = status;
+    const setQuery = {};
+    if (name !== undefined) setQuery["subtasks.$.name"] = name;
+    if (status !== undefined) setQuery["subtasks.$.status"] = status;
 
-    if (Object.keys(setObj).length === 0) return res.status(400).json({ success: false, message: "No update fields provided" });
+    const updatedTask = await Task.findOneAndUpdate(
+      { _id: taskId, userId, "subtasks._id": subtaskId },
+      { $set: setQuery },
+      { new: true, runValidators: true }
+    );
 
-    const updated = await userModel.findOneAndUpdate(
-      { _id: userId, "tasks._id": taskId },
-      { $set: setObj },
-      {
-        arrayFilters: [{ "t._id": new mongoose.Types.ObjectId(taskId) }, { "s._id": new mongoose.Types.ObjectId(subtaskId) }],
-        new: true,
-        runValidators: true
-      }
-    ).select("-password");
+    if (!updatedTask) {
+      return res.status(404).json({
+        success: false,
+        message: "Task or subtask not found",
+      });
+    }
 
-    if (!updated) return res.status(404).json({ success: false, message: "User/Task/Subtask not found" });
-
-    // --- AUTO-COMPLETION LOGIC (Bottom-Up) ---
-    // Check if ALL subtasks are now done.
-    const currentTask = updated.tasks.find(t => String(t._id) === String(taskId));
-    if (currentTask && currentTask.subtasks && currentTask.subtasks.length > 0) {
-      const allDone = currentTask.subtasks.every(s => s.status === 'done' || s.status === 'completed');
-      const parentStatus = allDone ? 'completed' : 'pending';
-
-      // Only update if different to avoid redundancy (though redundant update is harmless)
-      if (currentTask.status !== parentStatus) {
-        const finalUpdate = await userModel.findOneAndUpdate(
-          { _id: userId, "tasks._id": taskId },
-          { $set: { "tasks.$.status": parentStatus } },
-          { new: true }
-        );
-        // Use the fully updated document
-        const finalTask = finalUpdate.tasks.find(t => String(t._id) === String(taskId));
-        const finalSubtask = finalTask.subtasks.find(s => String(s._id) === String(subtaskId));
-        return res.status(200).json({ success: true, message: "Subtask updated (Parent synced)", subtask: finalSubtask, task: finalTask, user: finalUpdate });
+    // Auto-complete task if all subtasks done
+    if (
+      updatedTask.subtasks.length > 0 &&
+      updatedTask.subtasks.every((s) => s.status === "done")
+    ) {
+      if (updatedTask.status !== "completed") {
+        updatedTask.status = "completed";
+        updatedTask.completedAt = new Date();
+        await updatedTask.save();
       }
     }
 
-    const task = updated.tasks.find(t => String(t._id) === String(taskId));
-    const subtask = task.subtasks.find(s => String(s._id) === String(subtaskId));
-
-    res.status(200).json({ success: true, message: "Subtask updated", subtask, task, user: updated });
+    return res.status(200).json({
+      success: true,
+      task: updatedTask,
+    });
   } catch (error) {
     console.error("updateSubtask:", error);
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/* DELETE SUBTASK -> DELETE /api/tasks/:id/subtasks/:subtaskId */
 const deleteSubtask = async (req, res) => {
   try {
     const userId = getUserIdFromReq(req);
     const taskId = req.params.id;
     const subtaskId = req.params.subtaskId;
 
-    if (!userId || !taskId || !subtaskId) return res.status(400).json({ success: false, message: "userId, taskId and subtaskId required" });
+    if (!userId || !taskId || !subtaskId) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing parameters",
+      });
+    }
 
-    // [NEW] Update Last Active
-    await userDataModel.findOneAndUpdate({ userId }, { lastActive: new Date() });
+    await userDataModel.findOneAndUpdate(
+      { userId },
+      { $set: { lastActive: new Date() } }
+    );
 
-    const updated = await userModel.findOneAndUpdate(
-      { _id: userId, "tasks._id": taskId },
-      { $pull: { "tasks.$.subtasks": { _id: subtaskId } } },
+    const updatedTask = await Task.findOneAndUpdate(
+      { _id: taskId, userId },
+      { $pull: { subtasks: { _id: subtaskId } } },
       { new: true }
-    ).select("-password");
+    );
 
-    if (!updated) return res.status(404).json({ success: false, message: "User/Task/Subtask not found" });
+    if (!updatedTask) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found",
+      });
+    }
 
-    res.status(200).json({ success: true, message: "Subtask deleted", user: updated });
+    return res.status(200).json({
+      success: true,
+      task: updatedTask,
+    });
   } catch (error) {
     console.error("deleteSubtask:", error);
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -326,5 +426,5 @@ export {
   deleteTask,
   addSubtask,
   updateSubtask,
-  deleteSubtask
+  deleteSubtask,
 };

@@ -1079,7 +1079,6 @@ const TaskManager = ({ onMenuClick }) => {
       thisWeek: [],
       later: [],
       noDate: [],
-      noDate: [],
       completed: [], // completed section
       cancelled: [], // cancelled section
     };

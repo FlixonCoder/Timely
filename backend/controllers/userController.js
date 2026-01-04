@@ -1,48 +1,75 @@
 // controllers/userController.js
-import userModel from "../models/userModel.js";
+import User from "../models/userModel.js";
 import userDataModel from "../models/userDataModel.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
-import { v2 as cloudinary } from 'cloudinary';
+import { v2 as cloudinary } from "cloudinary";
 
-const createToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+/* --------------------------------------------------
+   JWT Helper
+-------------------------------------------------- */
+const createToken = (id) =>
+    jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-/* REGISTER */
+/* --------------------------------------------------
+   Helper: userId (EXPECTED from auth middleware)
+-------------------------------------------------- */
+const getUserIdFromReq = (req) => req.userId;
+
+/* --------------------------------------------------
+   REGISTER
+-------------------------------------------------- */
 const registerUser = async (req, res) => {
     try {
         const { name, username, email, password, dob } = req.body;
-        if (!name || !username || !email || !password)
-            return res.status(400).json({ success: false, message: "Name, username, email and password are required." });
 
-        const emailExists = await userModel.findOne({ email });
-        if (emailExists) return res.status(409).json({ success: false, message: "User with this email already exists" });
+        if (!name || !username || !email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: "Name, username, email and password are required",
+            });
+        }
 
-        const usernameExists = await userModel.findOne({ username });
-        if (usernameExists) return res.status(409).json({ success: false, message: "Username is already taken" });
+        const emailExists = await User.findOne({ email });
+        if (emailExists) {
+            return res.status(409).json({
+                success: false,
+                message: "User with this email already exists",
+            });
+        }
 
-        if (password.length < 8)
-            return res.status(400).json({ success: false, message: "Please enter a strong password (min 8 chars)." });
+        const usernameExists = await User.findOne({ username });
+        if (usernameExists) {
+            return res.status(409).json({
+                success: false,
+                message: "Username already taken",
+            });
+        }
 
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+        if (password.length < 8) {
+            return res.status(400).json({
+                success: false,
+                message: "Password must be at least 8 characters long",
+            });
+        }
 
-        const newUser = new userModel({
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const user = await User.create({
             name,
             username,
             email,
             password: hashedPassword,
-            dob: dob ? new Date(dob) : null
+            dob: dob ? new Date(dob) : null,
         });
 
-        const user = await newUser.save();
-
-        // [NEW] Initialize User Data
+        // Initialize user metrics
         await userDataModel.create({ userId: user._id });
 
         const token = createToken(user._id);
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             token,
             user: {
@@ -51,32 +78,52 @@ const registerUser = async (req, res) => {
                 username: user.username,
                 email: user.email,
                 dob: user.dob,
-                tasks: user.tasks || []
-            }
+            },
         });
     } catch (error) {
         console.error("registerUser:", error);
-        res.status(500).json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
-/* LOGIN */
+/* --------------------------------------------------
+   LOGIN
+-------------------------------------------------- */
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
-        if (!email || !password) return res.status(400).json({ success: false, message: "Email and password required." });
 
-        const user = await userModel.findOne({ email });
-        if (!user) return res.status(404).json({ success: false, message: "User does not exist" });
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: "Email and password are required",
+            });
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
 
         const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(401).json({ success: false, message: "Invalid credentials" });
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid credentials",
+            });
+        }
 
-        // [NEW] Update Last Active
-        await userDataModel.findOneAndUpdate({ userId: user._id }, { lastActive: new Date() });
+        await userDataModel.findOneAndUpdate(
+            { userId: user._id },
+            { $set: { lastActive: new Date() } }
+        );
 
         const token = createToken(user._id);
-        res.status(200).json({
+
+        return res.status(200).json({
             success: true,
             token,
             user: {
@@ -85,116 +132,207 @@ const loginUser = async (req, res) => {
                 username: user.username,
                 email: user.email,
                 dob: user.dob,
-                tasks: user.tasks || []
-            }
+            },
         });
     } catch (error) {
         console.error("loginUser:", error);
-        res.status(500).json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
-/* GET USER PROFILE (prefers req.body.userId from auth middleware) */
+/* --------------------------------------------------
+   GET USER PROFILE (SELF ONLY)
+-------------------------------------------------- */
 const getUser = async (req, res) => {
     try {
-        const userId = req.userId || req.body.userId || req.params.userId;
-        if (!userId) return res.status(400).json({ success: false, message: "userId required" });
-        if (!mongoose.Types.ObjectId.isValid(userId))
-            return res.status(400).json({ success: false, message: "Invalid userId" });
+        const userId = getUserIdFromReq(req);
 
-        const user = await userModel.findById(userId).select("-password -__v");
-        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+        if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized",
+            });
+        }
 
-        res.status(200).json({ success: true, user });
+        const user = await User.findById(userId).select("-password");
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            user,
+        });
     } catch (error) {
         console.error("getUser:", error);
-        res.status(500).json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
-/* UPDATE PROFILE (name, username, dob, email, image) */
+/* --------------------------------------------------
+   UPDATE PROFILE
+-------------------------------------------------- */
 const updateUser = async (req, res) => {
     try {
-        const userId = req.userId || req.body.userId || req.params.userId;
-        if (!userId) return res.status(400).json({ success: false, message: "userId required" });
+        const userId = getUserIdFromReq(req);
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized",
+            });
+        }
 
-        const allowed = ["name", "username", "dob", "email"];
+        const allowedFields = ["name", "username", "email", "dob"];
         const payload = {};
 
-        allowed.forEach(k => {
-            if (req.body[k] !== undefined) payload[k] = k === "dob" && req.body[k] ? new Date(req.body[k]) : req.body[k];
+        allowedFields.forEach((field) => {
+            if (req.body[field] !== undefined) {
+                payload[field] =
+                    field === "dob" && req.body[field]
+                        ? new Date(req.body[field])
+                        : req.body[field];
+            }
         });
 
-        // Handle Image Upload
+        // Image upload
         if (req.file) {
             const result = await cloudinary.uploader.upload(req.file.path);
             payload.image = result.secure_url;
         }
 
+        // Uniqueness checks
         if (payload.username) {
-            const already = await userModel.findOne({ username: payload.username, _id: { $ne: userId } });
-            if (already) return res.status(409).json({ success: false, message: "Username already taken" });
+            const exists = await User.findOne({
+                username: payload.username,
+                _id: { $ne: userId },
+            });
+            if (exists) {
+                return res.status(409).json({
+                    success: false,
+                    message: "Username already taken",
+                });
+            }
         }
 
         if (payload.email) {
-            const already = await userModel.findOne({ email: payload.email, _id: { $ne: userId } });
-            if (already) return res.status(409).json({ success: false, message: "Email already in use" });
+            const exists = await User.findOne({
+                email: payload.email,
+                _id: { $ne: userId },
+            });
+            if (exists) {
+                return res.status(409).json({
+                    success: false,
+                    message: "Email already in use",
+                });
+            }
         }
 
-        const updated = await userModel.findByIdAndUpdate(userId, payload, { new: true }).select("-password -__v");
-        if (!updated) return res.status(404).json({ success: false, message: "User not found" });
+        const updatedUser = await User.findByIdAndUpdate(userId, payload, {
+            new: true,
+        }).select("-password");
 
-        res.status(200).json({ success: true, message: "Profile updated", user: updated });
+        if (!updatedUser) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            user: updatedUser,
+        });
     } catch (error) {
         console.error("updateUser:", error);
-        res.status(500).json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
-/* CHANGE PASSWORD */
+/* --------------------------------------------------
+   CHANGE PASSWORD
+-------------------------------------------------- */
 const changePassword = async (req, res) => {
     try {
-        const userId = req.userId || req.body.userId;
+        const userId = getUserIdFromReq(req);
         const { oldPassword, newPassword } = req.body;
-        if (!userId || !oldPassword || !newPassword)
-            return res.status(400).json({ success: false, message: "userId, oldPassword and newPassword required" });
 
-        const user = await userModel.findById(userId);
-        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+        if (!userId || !oldPassword || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing required fields",
+            });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
 
         const isMatch = await bcrypt.compare(oldPassword, user.password);
-        if (!isMatch) return res.status(401).json({ success: false, message: "Old password incorrect" });
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: "Old password incorrect",
+            });
+        }
 
-        if (newPassword.length < 8)
-            return res.status(400).json({ success: false, message: "New password must be at least 8 characters." });
+        if (newPassword.length < 8) {
+            return res.status(400).json({
+                success: false,
+                message: "New password must be at least 8 characters",
+            });
+        }
 
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(newPassword, salt);
+        user.password = await bcrypt.hash(newPassword, 10);
         await user.save();
 
-        res.status(200).json({ success: true, message: "Password changed successfully" });
+        return res.status(200).json({
+            success: true,
+            message: "Password updated successfully",
+        });
     } catch (error) {
         console.error("changePassword:", error);
-        res.status(500).json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
-/* DELETE USER */
+/* --------------------------------------------------
+   DELETE USER (HARD DELETE)
+-------------------------------------------------- */
 const deleteUser = async (req, res) => {
     try {
-        const userId = req.userId || req.body.userId || req.params.userId;
-        if (!userId) return res.status(400).json({ success: false, message: "userId required" });
+        const userId = getUserIdFromReq(req);
 
-        // [NEW] Cleanup User Data
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized",
+            });
+        }
+
         await userDataModel.findOneAndDelete({ userId });
+        const deleted = await User.findByIdAndDelete(userId);
 
-        const deleted = await userModel.findByIdAndDelete(userId);
-        if (!deleted) return res.status(404).json({ success: false, message: "User not found" });
+        if (!deleted) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
 
-        res.status(200).json({ success: true, message: "User deleted" });
+        return res.status(200).json({
+            success: true,
+            message: "User deleted successfully",
+        });
     } catch (error) {
         console.error("deleteUser:", error);
-        res.status(500).json({ success: false, message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 
@@ -204,5 +342,5 @@ export {
     getUser,
     updateUser,
     changePassword,
-    deleteUser
+    deleteUser,
 };

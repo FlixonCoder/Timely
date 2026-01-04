@@ -4,6 +4,7 @@ import api from '../utils/api';
 import { Link } from 'react-router-dom';
 import { Menu, ArrowRight, CheckCircle2, Circle, Clock, Calendar, Sparkles } from 'lucide-react';
 import quotes from '../assets/quotes';
+import HabitTracker from '../components/HabitTracker';
 
 const Dashboard = ({ onMenuClick }) => {
     const { user } = useAuth();
@@ -91,7 +92,7 @@ const Dashboard = ({ onMenuClick }) => {
                     </div>
                 </section>
 
-                {/* Top Pending Tasks */}
+                {/* Stats & Tasks Section */}
                 <section>
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Top Pending Tasks</h3>
@@ -146,6 +147,11 @@ const Dashboard = ({ onMenuClick }) => {
                             </div>
                         )}
                     </div>
+                </section>
+
+                {/* Habit Tracker Section */}
+                <section>
+                    <HabitTracker />
                 </section>
 
             </main>

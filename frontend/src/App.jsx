@@ -12,6 +12,7 @@ import TaskManager from './pages/TaskManager'
 import Profile from './pages/Profile'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import HabitTrackerPage from './pages/HabitTrackerPage'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { LoadingProvider, useLoading } from './context/LoadingContext';
 import GlobalLoader from './components/GlobalLoader';
@@ -43,6 +44,7 @@ const MainLayout = () => {
         <div className="flex-1 md:ml-64 ml-0 transition-all duration-300 w-full">
           <Routes>
             <Route path="/dashboard" element={<Dashboard onMenuClick={() => setIsSidebarOpen(true)} />} />
+            <Route path="/habit-tracker" element={<HabitTrackerPage onMenuClick={() => setIsSidebarOpen(true)} />} />
             <Route path="/task-manager" element={<TaskManager onMenuClick={() => setIsSidebarOpen(true)} />} />
             <Route path="/my-profile" element={<Profile onMenuClick={() => setIsSidebarOpen(true)} />} />
             {/* Redirect any other path to Dashboard */}

@@ -30,10 +30,12 @@ app.use(
 
 // Routes
 import adminRouter from "./routes/adminRoute.js";
+import habitRouter from "./routes/habitRoutes.js";
 
 app.use("/api/user", userRouter);
 app.use("/api/tasks", taskRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/habits", habitRouter);
 
 app.get("/", (req, res) => res.send("API working great"));
 

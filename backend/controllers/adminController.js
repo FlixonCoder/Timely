@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import userModel from '../models/userModel.js';
 import userDataModel from '../models/userDataModel.js';
+import Task from '../models/taskModel.js';
 
 dotenv.config();
 
@@ -38,11 +39,8 @@ const getDashboardStats = async (req, res) => {
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         const activeUsers = await userDataModel.countDocuments({ lastActive: { $gte: sevenDaysAgo } });
 
-        // Total Tasks (sum of all totalTasks in userData)
-        const taskData = await userDataModel.aggregate([
-            { $group: { _id: null, total: { $sum: "$totalTasks" } } }
-        ]);
-        const totalTasks = taskData.length > 0 ? taskData[0].total : 0;
+        // Total Tasks (Count directly from Task collection)
+        const totalTasks = await Task.countDocuments({});
 
         // Latest 5 users
         const latestUsers = await userModel.find({}).sort({ createdAt: -1 }).limit(5).select('-password');
@@ -67,23 +65,22 @@ const getAllUsers = async (req, res) => {
     try {
         const users = await userModel.find({}).select('-password').sort({ createdAt: -1 });
 
-        // Populate with UserData and calculate task stats
+        // Enhance users with stats (Promise.all is parallel)
         const usersWithData = await Promise.all(users.map(async (user) => {
             const data = await userDataModel.findOne({ userId: user._id });
 
-            // Calculate task stats
-            const taskStats = {
-                completed: user.tasks.filter(t => t.status === 'completed').length,
-                pending: user.tasks.filter(t => t.status === 'pending').length,
-                cancelled: user.tasks.filter(t => t.status === 'cancelled').length,
-                deleted: user.tasks.filter(t => t.status === 'deleted').length
-            };
+            // Fetch task stats via aggregation or counting
+            const [completed, pending, cancelled, deleted] = await Promise.all([
+                Task.countDocuments({ userId: user._id, status: 'completed' }),
+                Task.countDocuments({ userId: user._id, status: 'pending' }),
+                Task.countDocuments({ userId: user._id, status: 'cancelled' }),
+                Task.countDocuments({ userId: user._id, status: 'deleted' })
+            ]);
 
-            const userObj = user.toObject();
-            delete userObj.tasks; // Remove raw tasks array
+            const taskStats = { completed, pending, cancelled, deleted };
 
             return {
-                ...userObj,
+                ...user.toObject(),
                 userData: data || { totalTasks: 0, lastActive: null, taskCompletionStatus: {} },
                 taskStats
             };
@@ -96,8 +93,6 @@ const getAllUsers = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 }
-
-export { adminLogin, getDashboardStats, getAllUsers, getAnalyticsData };
 
 const getAnalyticsData = async (req, res) => {
     try {
@@ -121,40 +116,34 @@ const getAnalyticsData = async (req, res) => {
             { $sort: { _id: 1 } }
         ]);
 
-        // 2. Tasks Created (Last 30 Days) - Using _id timestamp
-        const tasksCreated = await userModel.aggregate([
-            { $unwind: "$tasks" },
-            {
-                $addFields: {
-                    taskCreatedAt: { $convert: { input: "$tasks._id", to: "date" } }
-                }
-            },
+        // 2. Tasks Created (Last 30 Days) -> From Task Model
+        const tasksCreated = await Task.aggregate([
             {
                 $match: {
-                    taskCreatedAt: { $gte: thirtyDaysAgo }
+                    createdAt: { $gte: thirtyDaysAgo }
                 }
             },
             {
                 $group: {
-                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$taskCreatedAt" } },
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
                     count: { $sum: 1 }
                 }
             },
             { $sort: { _id: 1 } }
         ]);
 
-        // 3. Tasks Completed (Last 30 Days) - Using completedAt
-        const tasksCompleted = await userModel.aggregate([
-            { $unwind: "$tasks" },
+        // 3. Tasks Completed (Last 30 Days) -> From Task Model
+        // Note: Assumes Task model has completedAt or we use updatedAt for completed tasks
+        const tasksCompleted = await Task.aggregate([
             {
                 $match: {
-                    "tasks.status": "completed",
-                    "tasks.completedAt": { $gte: thirtyDaysAgo }
+                    status: "completed",
+                    updatedAt: { $gte: thirtyDaysAgo } // Using updatedAt as proxy if completedAt missing
                 }
             },
             {
                 $group: {
-                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$tasks.completedAt" } },
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$updatedAt" } },
                     count: { $sum: 1 }
                 }
             },
@@ -200,3 +189,5 @@ const getAnalyticsData = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 }
+
+export { adminLogin, getDashboardStats, getAllUsers, getAnalyticsData };

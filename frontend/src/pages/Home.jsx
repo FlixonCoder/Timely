@@ -13,15 +13,15 @@ const Home = () => {
           className="text-center max-w-3xl"
         >
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400">
-            Master Your Day
+            Welcome to Timily
           </h1>
           <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-10 leading-relaxed">
             Experience the ultimate task management dashboard. Minimalistic, powerful, and designed for focus.
           </p>
 
           <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            className="flex justify-center gap-4"
+            whileHover={{ scale: 1.02 }}
           >
             <Link
               to="/dashboard"

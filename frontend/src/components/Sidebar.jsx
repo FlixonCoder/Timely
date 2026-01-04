@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Sun, Moon, LogOut, LayoutDashboard, X, User } from 'lucide-react';
+import { Sun, Moon, LogOut, LayoutDashboard, X, User, Trophy } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -80,6 +80,14 @@ const Sidebar = ({ isOpen, onClose }) => {
                 >
                     <LayoutDashboard size={20} className={pathname === '/task-manager' ? 'animate-pulse' : ''} />
                     <span>Task Manager</span>
+                </Link>
+                <Link
+                    to="/habit-tracker"
+                    className={pathname === '/habit-tracker' ? activeStyle : inactiveStyle}
+                    onClick={() => window.innerWidth < 768 && onClose()}
+                >
+                    <Trophy size={20} className={pathname === '/habit-tracker' ? 'animate-pulse' : ''} />
+                    <span>Habit Tracker</span>
                 </Link>
                 <Link
                     to="/my-profile"
