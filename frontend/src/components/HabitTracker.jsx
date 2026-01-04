@@ -109,7 +109,7 @@ const HabitTracker = () => {
     };
 
     const deleteHabit = async (habitId) => {
-        if (!confirm("Delete this habit permanently?")) return;
+        // if (!confirm("Delete this habit permanently?")) return; // Removed confirmation
         try {
             const res = await api.delete(`/api/habits/${habitId}`);
             if (res.data.success) {
