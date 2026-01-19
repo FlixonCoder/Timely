@@ -19,4 +19,20 @@ api.interceptors.request.use(
     }
 );
 
+import { toast } from 'react-toastify';
+
+api.interceptors.response.use(
+    response => response,
+    error => {
+        if (error.response && error.response.status === 401) {
+            localStorage.removeItem('token');
+            toast.error("Session expired. Please login again.");
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 1000); // Slight delay for toast to be visible
+        }
+        return Promise.reject(error);
+    }
+);
+
 export default api;

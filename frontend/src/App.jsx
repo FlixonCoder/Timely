@@ -1,7 +1,7 @@
 
 import React from 'react'
 import { AnimatePresence } from 'framer-motion';
-import { Route, Router, Routes, Navigate } from 'react-router-dom'
+import { Route, Routes, Navigate } from 'react-router-dom'
 import Home from './pages/Home'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
@@ -76,6 +76,13 @@ const MainLayout = () => {
 
 const AppInner = () => {
   const { isLoading } = useLoading();
+
+  React.useEffect(() => {
+    // Clear legacy local storage data if it exists
+    localStorage.removeItem('taskState');
+    localStorage.removeItem('debug_auth_token');
+  }, []);
+
   return (
     <>
       <AnimatePresence>
@@ -83,8 +90,19 @@ const AppInner = () => {
       </AnimatePresence>
       <AuthProvider>
         <MainLayout />
-        <ToastContainer position="bottom-right" autoClose={3000} />
       </AuthProvider>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
     </>
   );
 };

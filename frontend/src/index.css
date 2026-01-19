@@ -1,2 +1,46 @@
 @import "tailwindcss";
 @variant dark (&:where(.dark, .dark *));
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 14px;
+  /* Slightly wider to accommodate "margin" */
+  height: 14px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  /* slate-300 */
+  border-radius: 9999px;
+  /* Pill shape */
+  border: 4px solid transparent;
+  /* Creates the "margin" effect */
+  background-clip: content-box;
+  /* Ensures background only paints inside border */
+  transition: background-color 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+  /* slate-400 */
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+  background-color: #475569;
+  /* slate-600 */
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: #64748b;
+  /* slate-500 */
+}
+
+/* Prevent horizontal scroll issues globally */
+body {
+  overflow-x: hidden;
+}

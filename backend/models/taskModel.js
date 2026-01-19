@@ -9,8 +9,7 @@ const SubtaskSchema = new mongoose.Schema(
             enum: ["todo", "in-progress", "done"],
             default: "todo",
         },
-    },
-    { _id: false }
+    }
 );
 
 /* -------------------- Task -------------------- */

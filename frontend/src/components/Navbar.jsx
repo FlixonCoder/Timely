@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 
 const Navbar = () => {
     const { pathname } = useLocation()
-    const isHome = pathname === '/'
+    const isHome = pathname === '/' || pathname === '/login' || pathname === '/signup'
 
     const [darkMode, setDarkMode] = useState(() => {
         return (
@@ -14,6 +14,16 @@ const Navbar = () => {
                 window.matchMedia('(prefers-color-scheme: dark)').matches)
         )
     })
+
+    const [scrolled, setScrolled] = useState(false);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setScrolled(window.scrollY > 20);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     useEffect(() => {
         if (darkMode) {
@@ -31,9 +41,9 @@ const Navbar = () => {
 
     return (
         <nav
-            className={`transition-all duration-300 z-50 p-4 ${isHome
-                    ? 'fixed top-0 left-0 right-0 bg-transparent'
-                    : 'sticky top-0 bg-white dark:bg-gray-900 shadow-md border-b border-gray-200 dark:border-gray-800'
+            className={`z-50 p-4 ${isHome ? 'transition-all duration-300' : ''} ${isHome && !scrolled
+                ? 'fixed top-0 left-0 right-0 bg-transparent'
+                : 'sticky top-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm border-b border-gray-200 dark:border-gray-800'
                 }`}
         >
             <div className="container mx-auto flex justify-between items-center">
@@ -58,8 +68,8 @@ const Navbar = () => {
                         <button
                             onClick={toggleTheme}
                             className={`p-2 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${isHome
-                                    ? 'bg-white/10 hover:bg-white/20 text-gray-800 dark:text-gray-200 backdrop-blur-sm'
-                                    : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+                                ? 'bg-white/10 hover:bg-white/20 text-gray-800 dark:text-gray-200 backdrop-blur-sm'
+                                : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
                                 }`}
                             aria-label="Toggle Dark Mode"
                         >

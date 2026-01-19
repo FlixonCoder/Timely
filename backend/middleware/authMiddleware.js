@@ -12,7 +12,7 @@ const authUser = async (req, res, next) => {
         }
 
         if (!extractedToken) {
-            return res.json({ success: false, message: 'Not Authorized Login Again' });
+            return res.status(401).json({ success: false, message: 'Not Authorized Login Again' });
         }
 
         const token_decode = jwt.verify(extractedToken, process.env.JWT_SECRET);
@@ -29,7 +29,7 @@ const authUser = async (req, res, next) => {
 
     } catch (error) {
         console.log(error);
-        res.json({ success: false, message: error.message });
+        return res.status(401).json({ success: false, message: error.message });
     }
 }
 
