@@ -1,10 +1,16 @@
 # 🚀 Timely - Personal Development & Productivity Tracker
 
+<div align="center">
+
 ![Project Status](https://img.shields.io/badge/Status-In%20Development-orange?style=for-the-badge)
 ![MERN Stack](https://img.shields.io/badge/Stack-MERN-blue?style=for-the-badge&logo=react)
 ![Tailwind CSS](https://img.shields.io/badge/Styling-Tailwind%20CSS-38B2AC?style=for-the-badge&logo=tailwind-css)
 
 **Timely** is an immersive, gamified personal training and character development platform designed to help users organize their lives and level up their habits. Built with the MERN stack, it combines robust task management with detailed habit tracking analytics in a modern, glassmorphic UI.
+
+[View Demo](#) · [Report Bug](#) · [Request Feature](#)
+
+</div>
 
 ---
 
@@ -28,19 +34,63 @@ Build consistency with powerful tracking tools.
 
 ---
 
-## 📸 Screenshots
+## 📸 Interface Preview
 
-> *Add your screenshots here to showcase the UI*
+<div align="center"> 
+  <h3>Dashboard Overview</h3>
+  <img src="./screenshots/dashboard.png" alt="Dashboard Screenshot" width="800px" style="border-radius: 10px; box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);">
+  <br><br>
+</div>
 
-### Dashboard Overview
-![Dashboard Interface](./screenshots/dashboard-preview.png)
+<div align="center">
+  <h3>Habit Tracker & Analytics</h3>
+  <img src="./screenshots/habits.png" alt="Habit Tracker Screenshot" width="800px" style="border-radius: 10px; box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);">
+  <br><br>
+</div>
 
-### Habit Tracker Analytics
-![Habit Tracker Interface](./screenshots/habit-tracker-preview.png)
+<div align="center"> 
+  <h3>Task Management</h3>
+  <img src="./screenshots/tasks.png" alt="Tasks Screenshot" width="800px" style="border-radius: 10px; box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);">
+</div>
 
 ---
 
 ## 🛠️ Tech Stack
+
+<table align="center">
+  <tr>
+    <td align="center" width="96">
+      <a href="https://reactjs.org/">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1200px-React-icon.svg.png" width="48" height="48" alt="React" />
+      </a>
+      <br>React
+    </td>
+    <td align="center" width="96">
+      <a href="https://tailwindcss.com/">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/d/d5/Tailwind_CSS_Logo.svg" width="48" height="48" alt="Tailwind" />
+      </a>
+      <br>Tailwind
+    </td>
+     <td align="center" width="96">
+      <a href="https://nodejs.org/">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/d/d9/Node.js_logo.svg" width="48" height="48" alt="Node.js" />
+      </a>
+      <br>Node.js
+    </td>
+    <td align="center" width="96">
+      <a href="https://www.mongodb.com/">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/9/93/MongoDB_Logo.svg" width="48" height="48" alt="MongoDB" />
+      </a>
+      <br>MongoDB
+    </td>
+    <td align="center" width="96">
+      <a href="https://recharts.org/">
+        <img src="https://avatars.githubusercontent.com/u/17219288?s=200&v=4" width="48" height="48" alt="Recharts" />
+      </a>
+      <br>Recharts
+    </td>
+  </tr>
+</table>
 
 ### Frontend
 - **Framework**: React (Vite)
@@ -48,14 +98,12 @@ Build consistency with powerful tracking tools.
 - **State Management**: Context API
 - **Visualization**: Recharts, React Circular Progressbar
 - **Notifications**: React Toastify
-- **Icons**: React Icons
 
 ### Backend
-- **Runtime**: Node.js & Express.js
+- **Server**: Express.js
 - **Database**: MongoDB (Mongoose ODM)
-- **Authentication**: JSON Web Tokens (JWT) & Bcrypt
-- **File Storage**: Cloudinary (via Multer)
-- **Date Handling**: Day.js
+- **Authentication**: JWT & Bcrypt
+- **Image Storage**: Cloudinary
 
 ---
 
@@ -66,7 +114,7 @@ Follow these steps to set up the project locally.
 ### Prerequisites
 - Node.js (v14+)
 - MongoDB (Local or Atlas URI)
-- Cloudinary Account (for image uploads)
+- Cloudinary Account
 
 ### Installation
 
