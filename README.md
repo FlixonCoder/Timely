@@ -165,9 +165,9 @@ Follow these steps to set up the project locally.
 ## 🔮 Future Roadmap
 
 - [ ] Gamification System (XP, Levels, Badges)
+- [ ] Task Reminder (Email, SMS, Push Notifications)
 - [ ] Social Features (Leaderboards, Challenges)
 - [ ] Mobile App (React Native)
-- [ ] AI-powered Task Suggestions
 
 ---
 
