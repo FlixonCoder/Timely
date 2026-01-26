@@ -146,6 +146,11 @@ Follow these steps to set up the project locally.
    CLOUDINARY_API_SECRET=your_api_secret
    ```
 
+   Create a `.env` file in the `frontend` directory:
+   ```env
+   VITE_BACKEND_URL=http://localhost:8000
+   ```
+
 4. **Run the Application**
    ```bash
    # Start Backend (from backend dir)
